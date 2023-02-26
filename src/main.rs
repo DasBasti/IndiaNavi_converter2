@@ -15,6 +15,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use gpx::read;
 use gpx::Gpx;
 
+use reqwest::Client;
 use tokio::task::JoinHandle;
 
 use unicode_bom::Bom;
@@ -26,7 +27,13 @@ const OPENTOPOPMAP_URLS: [&str; 3] = [
 ];
 
 async fn download_tile(url: &str) -> Result<Vec<u8>, ()> {
-    let resp = reqwest::get(url).await.expect("download to success");
+    let client = Client::builder()
+        .user_agent(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:110.0) Gecko/20100101 Firefox/110.0",
+        )
+        .build()
+        .expect("to act like firefox");
+    let resp = client.get(url).send().await.expect("download to success");
     let image =
         indianavi_map_color::convert_image(&resp.bytes().await.expect("download to have bytes"))
             .expect("image to be converted");
