@@ -10,7 +10,7 @@ indicatif = "0.17.3"
 indianavi_map_color = {path = "indianavi_map_color"}
 reqwest = "0.11.14"
 rand = "0.8.5"
-gpx = "0.8.6"
+gpx = { git="https://github.com/georust/gpx"}
 tokio = { version = "1.25.0", features = ["full"] }
 futures = "0.3.26"
 unicode-bom = "1.1.4"
