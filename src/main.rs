@@ -70,6 +70,8 @@ async fn main() {
         println!("strip 3 bytes from file");
     }
 
+    fs::copy(&file_path, "track.gpx").expect("Track file to be copied as track.gpx");
+
     // read takes any io::Read and gives a Result<Gpx, Error>.
     let gpx: Gpx = read(reader).expect("GPX File can be read");
 
