@@ -77,6 +77,15 @@ async fn main() {
 
     let (margin, lon_border, lat_border) = calculate_boundaries(gpx);
 
+    // Provide a custom bar style
+    let pb = ProgressBar::new(0);
+    pb.set_style(
+        ProgressStyle::with_template(
+            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] ({pos}/{len}, ETA {eta})",
+        )
+        .unwrap(),
+    );
+
     let mut tasks: Vec<JoinHandle<Result<(), ()>>> = vec![];
     for zoom in [14, 16] {
         let (xrange, yrange) = lonlat2tiles(lon_border, margin, lat_border, zoom);
@@ -89,6 +98,7 @@ async fn main() {
                 );
 
                 // Create a Tokio task for each path
+                let pb = pb.clone();
                 tasks.push(tokio::spawn(async move {
                     match download_tile(&online_addr).await {
                         Ok(image) => {
@@ -105,30 +115,21 @@ async fn main() {
 
                             match file.write_all(&image) {
                                 Ok(()) => {
-                                    println!("Load: {online_addr}");
+                                    pb.inc(1);
                                 }
-                                Err(_) => println!("Error: {online_addr}"),
+                                Err(_) => pb.println(format!("Error: {online_addr}")),
                             }
                         }
-                        Err(_) => println!("Error: {online_addr}"),
+                        Err(_) => pb.println(format!("Error: {online_addr}")),
                     }
                     Ok(())
                 }));
             }
         }
     }
-    // Provide a custom bar style
-    let pb = ProgressBar::new(tasks.len() as u64);
-    pb.set_style(
-        ProgressStyle::with_template(
-            "{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] ({pos}/{len}, ETA {eta})",
-        )
-        .unwrap(),
-    );
-
-    // TODO: connect the pb with the futures
-
+    pb.set_length(tasks.len() as u64);
     futures::future::join_all(tasks).await;
+    println!("done. Copy folder MAPS and file track.gpx to the root of your SD card.");
 }
 
 fn lonlat2tiles(
