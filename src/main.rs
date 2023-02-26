@@ -1,4 +1,3 @@
-use std::env;
 use std::f64::consts::PI;
 use std::fs;
 use std::fs::File;
@@ -7,6 +6,7 @@ use std::io::Read;
 use std::io::Write;
 use std::path::Path;
 
+use clap::Parser;
 use rand::thread_rng;
 use rand::Rng;
 
@@ -25,6 +25,18 @@ const OPENTOPOPMAP_URLS: [&str; 3] = [
     "https://b.tile.opentopomap.org",
     "https://c.tile.opentopomap.org",
 ];
+
+#[derive(Parser)]
+#[command(name = "IndiaNavi Map Downloader")]
+#[command(author = "Bastian Neumann <navi@platinenmacher.tech>")]
+#[command(version = "1.0")]
+#[command(about = "Loads IndiaNavi map tiles from opentopomap.org or other specified server.", long_about = None)]
+struct Cli {
+    gpx_path: std::path::PathBuf,
+    server_url: Option<String>,
+    #[arg(short, long)]
+    verbose: bool,
+}
 
 async fn download_tile(url: &str) -> Result<Vec<u8>, ()> {
     let client = Client::builder()
@@ -52,12 +64,9 @@ fn lat2tile(lat: f64, zoom: u32) -> u32 {
 
 #[tokio::main]
 async fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
-        println!("Usage: {} track.gpx", &args[0]);
-        return;
-    }
-    let file_path = &args[1];
+    let args = Cli::parse();
+
+    let file_path = &args.gpx_path;
     let mut file = File::open(&file_path).unwrap();
     let bom = Bom::from(&mut file);
 
@@ -92,10 +101,11 @@ async fn main() {
         for x in xrange {
             for y in yrange.clone() {
                 let mut rng = thread_rng();
-                let online_addr = format!(
-                    "{}/{zoom}/{x}/{y}.png",
-                    OPENTOPOPMAP_URLS[rng.gen_range(0..OPENTOPOPMAP_URLS.len())]
-                );
+                let server_addr = args
+                    .server_url
+                    .as_deref()
+                    .unwrap_or(OPENTOPOPMAP_URLS[rng.gen_range(0..OPENTOPOPMAP_URLS.len())]);
+                let online_addr = format!("{}/{zoom}/{x}/{y}.png", server_addr);
 
                 // Create a Tokio task for each path
                 let pb = pb.clone();
@@ -116,6 +126,9 @@ async fn main() {
                             match file.write_all(&image) {
                                 Ok(()) => {
                                     pb.inc(1);
+                                    if args.verbose {
+                                        pb.println(format!("Load: {online_addr}"));
+                                    }
                                 }
                                 Err(_) => pb.println(format!("Error: {online_addr}")),
                             }
