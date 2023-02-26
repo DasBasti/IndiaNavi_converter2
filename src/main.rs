@@ -102,7 +102,7 @@ async fn main() {
                 tasks.push(tokio::spawn(async move {
                     match download_tile(&online_addr).await {
                         Ok(image) => {
-                            let file_path_string = format!("tiles/{zoom}/{x}/{y}.raw");
+                            let file_path_string = format!("MAPS/{zoom}/{x}/{y}.raw");
                             let file_path = Path::new(&file_path_string);
                             let folder_path = file_path.parent().expect("to be a path");
                             fs::create_dir_all(&folder_path).expect("folder can be created");
