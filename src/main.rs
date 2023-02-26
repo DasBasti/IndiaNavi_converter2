@@ -19,7 +19,7 @@ use tokio::task::JoinHandle;
 
 use unicode_bom::Bom;
 
-const urls: [&str; 3] = [
+const OPENTOPOPMAP_URLS: [&str; 3] = [
     "https://a.tile.opentopomap.org",
     "https://b.tile.opentopomap.org",
     "https://c.tile.opentopomap.org",
@@ -74,8 +74,10 @@ async fn main() {
         for x in xrange {
             for y in yrange.clone() {
                 let mut rng = thread_rng();
-                let online_addr =
-                    format!("{}/{zoom}/{x}/{y}.png", urls[rng.gen_range(0..urls.len())]);
+                let online_addr = format!(
+                    "{}/{zoom}/{x}/{y}.png",
+                    OPENTOPOPMAP_URLS[rng.gen_range(0..OPENTOPOPMAP_URLS.len())]
+                );
 
                 // Create a Tokio task for each path
                 tasks.push(tokio::spawn(async move {
