@@ -2,6 +2,7 @@ use std::f64::consts::PI;
 use std::fs;
 use std::fs::File;
 use std::io::BufReader;
+use std::io::BufWriter;
 use std::io::Read;
 use std::io::Write;
 use std::path::Path;
@@ -79,12 +80,10 @@ async fn main() {
         println!("strip 3 bytes from file");
     }
 
-    fs::copy(&file_path, "track.gpx").expect("Track file to be copied as track.gpx");
-
     // read takes any io::Read and gives a Result<Gpx, Error>.
     let gpx: Gpx = read(reader).expect("GPX File can be read");
 
-    let (margin, lon_border, lat_border) = calculate_boundaries(gpx);
+    let (margin, lon_border, lat_border) = indianavi_gpx_loader::calculate_boundaries(gpx);
 
     // Provide a custom bar style
     let pb = ProgressBar::new(0);
@@ -117,11 +116,13 @@ async fn main() {
                             let folder_path = file_path.parent().expect("to be a path");
                             fs::create_dir_all(&folder_path).expect("folder can be created");
 
-                            let mut file = fs::OpenOptions::new()
-                                .create(true)
-                                .write(true)
-                                .open(file_path)
-                                .expect("file to be opened for write");
+                            let mut file = BufWriter::new(
+                                fs::OpenOptions::new()
+                                    .create(true)
+                                    .write(true)
+                                    .open(file_path)
+                                    .expect("file to be opened for write"),
+                            );
 
                             match file.write_all(&image) {
                                 Ok(()) => {
@@ -165,43 +166,3 @@ fn lonlat2tiles(
     (xrange, yrange)
 }
 
-fn calculate_boundaries(gpx: Gpx) -> (u32, [f64; 2], [f64; 2]) {
-    // Each GPX file has multiple "tracks", this takes the first one.
-    let margin = 5;
-    let mut lon_border: [f64; 2] = [90.0, -90.0];
-    let mut lat_border: [f64; 2] = [180.0, -180.0];
-    for track in &gpx.tracks {
-        for s in &track.segments {
-            for p in &s.points {
-                (lon_border, lat_border) = adjust_boundaries(p, lon_border, lat_border);
-            }
-        }
-    }
-    for route in &gpx.routes {
-        for p in &route.points {
-            (lon_border, lat_border) = adjust_boundaries(p, lon_border, lat_border);
-        }
-    }
-
-    (margin, lon_border, lat_border)
-}
-
-fn adjust_boundaries(
-    p: &gpx::Waypoint,
-    mut lon_border: [f64; 2],
-    mut lat_border: [f64; 2],
-) -> ([f64; 2], [f64; 2]) {
-    let x = p.point().x();
-    let y = p.point().y();
-    if x < lon_border[0] {
-        lon_border[0] = x;
-    } else if x > lon_border[1] {
-        lon_border[1] = x;
-    }
-    if y < lat_border[0] {
-        lat_border[0] = y;
-    } else if y > lat_border[1] {
-        lat_border[1] = y;
-    }
-    (lon_border, lat_border)
-}
