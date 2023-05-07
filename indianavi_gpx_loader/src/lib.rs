@@ -13,8 +13,7 @@ use unicode_bom::Bom;
 
 
 
-pub fn calculate_boundaries(gpx: Gpx) -> (u32, [f64; 2], [f64; 2]) {
-        let margin = 7;
+pub fn calculate_boundaries(gpx: Gpx, margin: u32) -> ([f64; 2], [f64; 2]) {
     let mut lon_border: [f64; 2] = [90.0, -90.0];
     let mut lat_border: [f64; 2] = [180.0, -180.0];
     for track in &gpx.tracks {
@@ -30,7 +29,7 @@ pub fn calculate_boundaries(gpx: Gpx) -> (u32, [f64; 2], [f64; 2]) {
         }
     }
 
-    (margin, lon_border, lat_border)
+    (lon_border, lat_border)
 }
 
 fn adjust_boundaries(

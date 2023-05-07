@@ -6,6 +6,8 @@ use std::io::BufWriter;
 use std::io::Read;
 use std::io::Write;
 use std::path::Path;
+use std::path::PathBuf;
+use std::process::exit;
 
 use clap::Parser;
 use rand::thread_rng;
@@ -33,8 +35,14 @@ const OPENTOPOPMAP_URLS: [&str; 3] = [
 #[command(version = "1.0")]
 #[command(about = "Loads IndiaNavi map tiles from opentopomap.org or other specified server.", long_about = None)]
 struct Cli {
-    gpx_path: std::path::PathBuf,
+    #[arg(short, long)]
+    gpx_path: Option<std::path::PathBuf>,
+    #[arg(short, long)]
     server_url: Option<String>,
+    #[structopt(long, number_of_values = 2)]
+    point: Option<Vec<f64>>,
+    #[arg(short, long, default_value_t = 10)]
+    margin: u32,
     #[arg(short, long)]
     verbose: bool,
 }
@@ -67,23 +75,41 @@ fn lat2tile(lat: f64, zoom: u32) -> u32 {
 async fn main() {
     let args = Cli::parse();
 
-    let file_path = &args.gpx_path;
-    let mut file = File::open(&file_path).unwrap();
-    let bom = Bom::from(&mut file);
+    let margin = &args.margin;
 
-    let file = File::open(&file_path).unwrap();
-    let mut reader = BufReader::new(file);
-    println!("BOM: {bom}");
-    if bom != Bom::Null {
-        let mut x = [0; 3];
-        let _ = reader.read_exact(&mut x);
-        println!("strip 3 bytes from file");
+    let mut lon_border: Option<[f64; 2]> = None;
+    let mut lat_border: Option<[f64; 2]> = None;
+    match &args.gpx_path {
+        Some(path) => {
+            println!("Loading from File: {:?}", path);
+            let (lon, lat) = load_from_file(&path, &margin);
+            lon_border = Some(lon);
+            lat_border = Some(lat);
+        }
+        _ => {}
     }
 
-    // read takes any io::Read and gives a Result<Gpx, Error>.
-    let gpx: Gpx = read(reader).expect("GPX File can be read");
+    match &args.point {
+        Some(point) => {
+            println!("Loading area around point {:?} with {margin}km", point);
+            let (lon, lat) = load_from_point(&point, &margin);
+            lon_border = Some(lon);
+            lat_border = Some(lat);
+        }
+        _ => {}
+    }
 
-    let (margin, lon_border, lat_border) = indianavi_gpx_loader::calculate_boundaries(gpx);
+    match (lon_border, lat_border) {
+        (None, None) => {
+            println!("either gpx or geopoint");
+            exit(1);
+            }
+        _ => {
+        }
+    }
+    let lon_border = lon_border.unwrap();
+    let lat_border = lat_border.unwrap();
+
 
     // Provide a custom bar style
     let pb = ProgressBar::new(0);
@@ -96,7 +122,7 @@ async fn main() {
 
     let mut tasks: Vec<JoinHandle<Result<(), ()>>> = vec![];
     for zoom in [14, 16] {
-        let (xrange, yrange) = lonlat2tiles(lon_border, margin, lat_border, zoom);
+        let (xrange, yrange) = lonlat2tiles(lon_border, &margin, lat_border, zoom);
         for x in xrange {
             for y in yrange.clone() {
                 let mut rng = thread_rng();
@@ -148,7 +174,7 @@ async fn main() {
 
 fn lonlat2tiles(
     lon_border: [f64; 2],
-    margin: u32,
+    margin: &u32,
     lat_border: [f64; 2],
     zoom: u32,
 ) -> (std::ops::Range<u32>, std::ops::Range<u32>) {
@@ -166,3 +192,34 @@ fn lonlat2tiles(
     (xrange, yrange)
 }
 
+fn load_from_file(file_path: &PathBuf, margin: &u32) -> ([f64; 2], [f64; 2]) {
+    let mut file = File::open(file_path).unwrap();
+    let bom = Bom::from(&mut file);
+
+    let file = File::open(&file_path).unwrap();
+    let mut reader = BufReader::new(file);
+    println!("BOM: {bom}");
+    if bom != Bom::Null {
+        let mut x = [0; 3];
+        let _ = reader.read_exact(&mut x);
+        println!("strip 3 bytes from file");
+    }
+
+    // read takes any io::Read and gives a Result<Gpx, Error>.
+    let gpx: Gpx = read(reader).expect("GPX File can be read");
+
+    indianavi_gpx_loader::calculate_boundaries(gpx, *margin)
+}
+
+fn load_from_point(point: &Vec<f64>, margin: &u32) -> ([f64; 2], [f64; 2]) {
+    assert_eq!(point.len(), 2);
+    let coef: f64 = f64::from(*margin) / 111320.0 / 2.0;
+    let min_lat = point[0] - coef;
+    let max_lat = point[0] + coef;
+
+    let coef = coef / f64::cos(point[0] * 0.01745);
+    let min_lon = point[1] - coef;
+    let max_lon = point[1] + coef;
+
+    ([min_lat, max_lat], [min_lon, max_lon])
+}
