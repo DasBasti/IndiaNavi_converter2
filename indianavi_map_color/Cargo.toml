@@ -9,6 +9,8 @@ edition = "2021"
 image = "*"
 num-integer = "0.1.45"
 openssl = { version = "=0.10.45", features = ["vendored"] }
+colored="*"
+lab= "*"
 
 [package.metadata.lambda.deploy]
 memory = 512                   # Function's memory

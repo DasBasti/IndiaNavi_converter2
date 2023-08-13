@@ -23,10 +23,8 @@ use tokio::task::JoinHandle;
 
 use unicode_bom::Bom;
 
-const OPENTOPOPMAP_URLS: [&str; 3] = [
-    "https://a.tile.opentopomap.org",
-    "https://b.tile.opentopomap.org",
-    "https://c.tile.opentopomap.org",
+const MAP_URLS: [&str; 1] = [
+    "https://tile.thunderforest.com/outdoors/{z}/{x}/{y}.png?apikey=696e2147ac5d4d82b426dab7559a3113",
 ];
 
 #[derive(Parser)]
@@ -55,9 +53,8 @@ async fn download_tile(url: &str) -> Result<Vec<u8>, ()> {
         .build()
         .expect("to act like firefox");
     let resp = client.get(url).send().await.expect("download to success");
-    let image =
-        indianavi_map_color::convert_image(&resp.bytes().await.expect("download to have bytes"))
-            .expect("image to be converted");
+    let loaded_bytes = &resp.bytes().await.expect("download to have bytes");
+    let image = indianavi_map_color::convert_image(loaded_bytes).unwrap_or_else(|b| panic!("img {:x?}",loaded_bytes));
     Ok(image)
 }
 
@@ -71,7 +68,7 @@ fn lat2tile(lat: f64, zoom: u32) -> u32 {
     tile.floor() as u32
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn main() {
     let args = Cli::parse();
 
@@ -125,12 +122,7 @@ async fn main() {
         let (xrange, yrange) = lonlat2tiles(lon_border, &margin, lat_border, zoom);
         for x in xrange {
             for y in yrange.clone() {
-                let mut rng = thread_rng();
-                let server_addr = args
-                    .server_url
-                    .as_deref()
-                    .unwrap_or(OPENTOPOPMAP_URLS[rng.gen_range(0..OPENTOPOPMAP_URLS.len())]);
-                let online_addr = format!("{}/{zoom}/{x}/{y}.png", server_addr);
+                let online_addr = format!("https://tile.thunderforest.com/outdoors/{zoom}/{x}/{y}.png?apikey=696e2147ac5d4d82b426dab7559a3113");
 
                 // Create a Tokio task for each path
                 let pb = pb.clone();
