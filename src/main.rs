@@ -10,8 +10,8 @@ use std::path::PathBuf;
 use std::process::exit;
 
 use clap::Parser;
-use rand::thread_rng;
-use rand::Rng;
+
+
 
 use indicatif::{ProgressBar, ProgressStyle};
 
@@ -54,7 +54,7 @@ async fn download_tile(url: &str) -> Result<Vec<u8>, ()> {
         .expect("to act like firefox");
     let resp = client.get(url).send().await.expect("download to success");
     let loaded_bytes = &resp.bytes().await.expect("download to have bytes");
-    let image = indianavi_map_color::convert_image(loaded_bytes).unwrap_or_else(|b| panic!("img {:x?}",loaded_bytes));
+    let image = indianavi_map_color::convert_image(loaded_bytes).unwrap_or_else(|_b| panic!("img {:x?}",loaded_bytes));
     Ok(image)
 }
 
