@@ -7,13 +7,7 @@
 
 use gpx::Gpx;
 
-use std::fs::File;
-use std::io::BufReader;
-use unicode_bom::Bom;
-
-
-
-pub fn calculate_boundaries(gpx: Gpx, margin: u32) -> ([f64; 2], [f64; 2]) {
+pub fn calculate_boundaries(gpx: Gpx, _margin: u32) -> ([f64; 2], [f64; 2]) {
     let mut lon_border: [f64; 2] = [90.0, -90.0];
     let mut lat_border: [f64; 2] = [180.0, -180.0];
     for track in &gpx.tracks {

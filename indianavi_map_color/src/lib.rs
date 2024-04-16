@@ -7,11 +7,8 @@
 
 use colored::*;
 use image::io::Reader as ImageReader;
-use image::ImageEncoder;
-use image::{GenericImageView, ImageBuffer, ImageError, Pixel, Rgb, RgbImage};
+use image::{GenericImageView, ImageError, Rgb, RgbImage};
 use lab::Lab;
-use num_integer::Roots;
-use std::cmp::{max, min};
 use std::io::Cursor;
 
 const BLACK: Rgb<u8> = Rgb([0, 0, 0]);
@@ -106,10 +103,12 @@ pub fn generic_map_color(x: u32, y: u32, pixel: Rgb<u8>) -> Rgb<u8> {
         (Lab::from_rgb(&[127, 0, 255]), fiddyfiddy, vec![RED, BLUE]),
     ];
 
+    #[allow(non_snake_case)]
     let mut most_fitting_dE = f32::MAX;
     let mut most_fitting_idx = 0;
     for (idx, color) in color_map.iter().enumerate() {
         let lab = Lab::from_rgb(&pixel.0);
+        #[allow(non_snake_case)]
         let dE_squared = (lab.l - color.0.l).powf(2.0)
             + (lab.a - color.0.a).powf(2.0)
             + (lab.b - color.0.b).powf(2.0);

@@ -9,11 +9,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::exit;
 
-use futures::prelude::*;
-
 use clap::Parser;
-
-
 
 use indicatif::{ProgressBar, ProgressStyle};
 
@@ -24,10 +20,6 @@ use reqwest::Client;
 use tokio::task::JoinHandle;
 
 use unicode_bom::Bom;
-
-const MAP_URLS: [&str; 1] = [
-    "https://tile.thunderforest.com/outdoors/{z}/{x}/{y}.png?apikey=696e2147ac5d4d82b426dab7559a3113",
-];
 
 #[derive(Parser)]
 #[command(name = "IndiaNavi Map Downloader")]
@@ -56,7 +48,8 @@ async fn download_tile(url: &str) -> Result<Vec<u8>, ()> {
         .expect("to act like firefox");
     let resp = client.get(url).send().await.expect("download to success");
     let loaded_bytes = &resp.bytes().await.expect("download to have bytes");
-    let image = indianavi_map_color::convert_image(loaded_bytes).unwrap_or_else(|_b| panic!("img {:x?}",loaded_bytes));
+    let image = indianavi_map_color::convert_image(loaded_bytes)
+        .unwrap_or_else(|_b| panic!("img {:x?}", loaded_bytes));
     Ok(image)
 }
 
@@ -102,13 +95,11 @@ async fn main() {
         (None, None) => {
             println!("either gpx or geopoint");
             exit(1);
-            }
-        _ => {
         }
+        _ => {}
     }
     let lon_border = lon_border.unwrap();
     let lat_border = lat_border.unwrap();
-
 
     // Provide a custom bar style
     let pb = ProgressBar::new(0);
@@ -122,7 +113,7 @@ async fn main() {
     let mut tasks: Vec<JoinHandle<Result<(), ()>>> = vec![];
     for zoom in [14, 16] {
         let (xrange, yrange) = lonlat2tiles(lon_border, &margin, lat_border, zoom);
-        pb.set_length(pb.length().unwrap_or(0)+  xrange.len() as u64 * yrange.len() as u64);
+        pb.set_length(pb.length().unwrap_or(0) + xrange.len() as u64 * yrange.len() as u64);
         for x in xrange {
             for y in yrange.clone() {
                 let online_addr = format!("https://tile.thunderforest.com/outdoors/{zoom}/{x}/{y}.png?apikey=696e2147ac5d4d82b426dab7559a3113");
@@ -141,7 +132,6 @@ async fn main() {
 
                     match download_tile(&online_addr).await {
                         Ok(image) => {
-
                             let mut file = BufWriter::new(
                                 fs::OpenOptions::new()
                                     .create(true)
