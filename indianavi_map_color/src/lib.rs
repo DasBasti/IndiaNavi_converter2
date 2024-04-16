@@ -119,7 +119,7 @@ pub fn generic_map_color(x: u32, y: u32, pixel: Rgb<u8>) -> Rgb<u8> {
         }
     }
     let rgb = color_map[most_fitting_idx].1(x, y, color_map[most_fitting_idx].2.clone());
-    println!(
+    /*println!(
         "{} {}",
         format!("{:02x}{:02x}{:02x}", pixel[0], pixel[1], pixel[2])
             .on_truecolor(pixel[0], pixel[1], pixel[2]),
@@ -128,7 +128,7 @@ pub fn generic_map_color(x: u32, y: u32, pixel: Rgb<u8>) -> Rgb<u8> {
             rgb[0], rgb[1], rgb[2], most_fitting_idx
         )
         .on_truecolor(rgb[0], rgb[1], rgb[2])
-    );
+    );*/
 
     return rgb;
 }

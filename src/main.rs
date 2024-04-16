@@ -9,6 +9,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::exit;
 
+use futures::prelude::*;
+
 use clap::Parser;
 
 
@@ -120,6 +122,7 @@ async fn main() {
     let mut tasks: Vec<JoinHandle<Result<(), ()>>> = vec![];
     for zoom in [14, 16] {
         let (xrange, yrange) = lonlat2tiles(lon_border, &margin, lat_border, zoom);
+        pb.set_length(pb.length().unwrap_or(0)+  xrange.len() as u64 * yrange.len() as u64);
         for x in xrange {
             for y in yrange.clone() {
                 let online_addr = format!("https://tile.thunderforest.com/outdoors/{zoom}/{x}/{y}.png?apikey=696e2147ac5d4d82b426dab7559a3113");
@@ -127,12 +130,17 @@ async fn main() {
                 // Create a Tokio task for each path
                 let pb = pb.clone();
                 tasks.push(tokio::spawn(async move {
+                    let file_path_string = format!("MAPS/{zoom}/{x}/{y}.raw");
+                    let file_path = Path::new(&file_path_string);
+                    if file_path.exists() {
+                        pb.inc(1);
+                        return Ok(());
+                    }
+                    let folder_path = file_path.parent().expect("to be a path");
+                    fs::create_dir_all(&folder_path).expect("folder can be created");
+
                     match download_tile(&online_addr).await {
                         Ok(image) => {
-                            let file_path_string = format!("MAPS/{zoom}/{x}/{y}.raw");
-                            let file_path = Path::new(&file_path_string);
-                            let folder_path = file_path.parent().expect("to be a path");
-                            fs::create_dir_all(&folder_path).expect("folder can be created");
 
                             let mut file = BufWriter::new(
                                 fs::OpenOptions::new()
@@ -156,10 +164,12 @@ async fn main() {
                     }
                     Ok(())
                 }));
+                while tasks.len() > 100 {
+                    let _ = tasks.pop().unwrap().await;
+                }
             }
         }
     }
-    pb.set_length(tasks.len() as u64);
     futures::future::join_all(tasks).await;
     println!("done. Copy folder MAPS and file track.gpx to the root of your SD card.");
 }
